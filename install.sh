@@ -202,3 +202,23 @@ generate_topic() {
 
     echo "Using topic: $TOPIC"
 }
+
+create_config() {
+    local config
+    config=$(cat <<EOF
+{
+  "server_url": "$SERVER_URL",
+  "topic": "$TOPIC"
+}
+EOF
+)
+
+    # Validate JSON
+    if ! echo "$config" | jq . >/dev/null 2>&1; then
+        echo "Error: Generated invalid JSON. Aborting."
+        exit 1
+    fi
+
+    echo "$config" > "$CONFIG_FILE"
+    echo "Created config at: $CONFIG_FILE"
+}
