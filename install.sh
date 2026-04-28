@@ -237,3 +237,130 @@ install_hook() {
     chmod +x "$hook_target"
     echo "Installed hook to: $hook_target"
 }
+
+show_settings_diff() {
+    echo ""
+    echo "Will add the following to $SETTINGS_FILE:"
+    echo ""
+    echo '  "hooks": {'
+    echo '    "Stop": ['
+    echo '      {'
+    echo '        "hooks": ['
+    echo '          {'
+    echo '            "type": "command",'
+    echo "            \"command\": \"$HOOKS_DIR/notify-ntfy.sh\","
+    echo '            "timeout": 10'
+    echo '          }'
+    echo '        ]'
+    echo '      }'
+    echo '    ],'
+    echo '    "PermissionRequest": ['
+    echo '      {'
+    echo '        "hooks": ['
+    echo '          {'
+    echo '            "type": "command",'
+    echo "            \"command\": \"$HOOKS_DIR/notify-ntfy.sh\","
+    echo '            "timeout": 10'
+    echo '          }'
+    echo '        ]'
+    echo '      }'
+    echo '    ],'
+    echo '    "Notification": ['
+    echo '      {'
+    echo '        "hooks": ['
+    echo '          {'
+    echo '            "type": "command",'
+    echo "            \"command\": \"$HOOKS_DIR/notify-ntfy.sh\","
+    echo '            "timeout": 10'
+    echo '          }'
+    echo '        ]'
+    echo '      }'
+    echo '    ]'
+    echo '  }'
+    echo ""
+
+    read -p "Modify settings.json? [Y/n/s] (s=skip) " -n 1 -r
+    echo
+
+    if [[ $REPLY =~ ^[Ss]$ ]]; then
+        echo "Skipping settings.json modification."
+        echo "Add hooks manually to $SETTINGS_FILE"
+        return 1
+    elif [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "Aborted."
+        exit 1
+    fi
+
+    return 0
+}
+
+modify_settings() {
+    if [ ! -f "$SETTINGS_FILE" ]; then
+        # Create new settings.json
+        cat > "$SETTINGS_FILE" <<EOF
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOOKS_DIR/notify-ntfy.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOOKS_DIR/notify-ntfy.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOOKS_DIR/notify-ntfy.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
+EOF
+        echo "Created new settings.json at: $SETTINGS_FILE"
+        return 0
+    fi
+
+    # Backup existing file
+    local backup="${SETTINGS_FILE}.backup.$(date +%Y%m%d-%H%M%S)"
+    cp "$SETTINGS_FILE" "$backup"
+    echo "Backed up existing settings to: $backup"
+
+    # Merge hooks into existing settings.json
+    local temp_file
+    temp_file=$(mktemp)
+
+    jq --arg hook_path "$HOOKS_DIR/notify-ntfy.sh" '
+        .hooks.Stop = [{"hooks": [{"type": "command", "command": $hook_path, "timeout": 10}]}]
+        | .hooks.PermissionRequest = [{"hooks": [{"type": "command", "command": $hook_path, "timeout": 10}]}]
+        | .hooks.Notification = [{"hooks": [{"type": "command", "command": $hook_path, "timeout": 10}]}]
+    ' "$SETTINGS_FILE" > "$temp_file"
+
+    if ! jq . "$temp_file" >/dev/null 2>&1; then
+        echo "Error: Failed to modify settings.json. Restore from backup: $backup"
+        rm "$temp_file"
+        exit 1
+    fi
+
+    mv "$temp_file" "$SETTINGS_FILE"
+    echo "Updated settings.json with hook registrations"
+}
