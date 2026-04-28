@@ -146,42 +146,44 @@ select_server() {
 }
 
 generate_topic() {
-    # Read adjectives and nouns from words.txt
-    local adjectives=()
-    local nouns=()
-    local in_nouns=false
+    # Read EFF wordlist from words.txt
+    local words=()
 
     while IFS= read -r line; do
         # Skip comments and empty lines
         [[ "$line" =~ ^#.*$ ]] && continue
         [ -z "$line" ] && continue
-
-        if [ "$line" = "# Nouns" ]; then
-            in_nouns=true
-            continue
-        fi
-
-        if [ "$in_nouns" = true ]; then
-            nouns+=("$line")
-        else
-            adjectives+=("$line")
-        fi
+        words+=("$line")
     done < "$SCRIPT_DIR/words.txt"
 
-    local num_adj=${#adjectives[@]}
-    local num_nouns=${#nouns[@]}
+    local num_words=${#words[@]}
 
-    # Generate 3 random combinations
+    if [ "$num_words" -lt 4 ]; then
+        echo "Error: Word list too short ($num_words words). Expected EFF wordlist." >&2
+        exit 1
+    fi
+
+    # Generate cryptographically random index using /dev/urandom
+    random_index() {
+        local max="$1"
+        local rand_bytes
+        # Read 4 bytes from /dev/urandom and convert to unsigned integer
+        rand_bytes=$(od -An -tu4 -N4 /dev/urandom | tr -d ' ')
+        echo $((rand_bytes % max))
+    }
+
+    # Generate 3 random four-word combinations
     local topics=()
     for i in 1 2 3; do
-        local adj1="${adjectives[$((RANDOM % num_adj))]}"
-        local noun1="${nouns[$((RANDOM % num_nouns))]}"
-        local noun2="${nouns[$((RANDOM % num_nouns))]}"
-        topics+=("${adj1}-${noun1}-${noun2}")
+        local w1="${words[$(random_index $num_words)]}"
+        local w2="${words[$(random_index $num_words)]}"
+        local w3="${words[$(random_index $num_words)]}"
+        local w4="${words[$(random_index $num_words)]}"
+        topics+=("${w1}-${w2}-${w3}-${w4}")
     done
 
     echo ""
-    echo "Generated topic suggestions:"
+    echo "Generated secure topic suggestions (4 words, ~52 bits of entropy):"
     echo "  1) ${topics[0]}"
     echo "  2) ${topics[1]}"
     echo "  3) ${topics[2]}"
