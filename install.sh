@@ -104,3 +104,22 @@ resolve_paths() {
     # Create directories if needed
     mkdir -p "$CONFIG_DIR" "$HOOKS_DIR"
 }
+
+detect_existing_config() {
+    if [ -f "$CONFIG_FILE" ]; then
+        echo "Found existing config at: $CONFIG_FILE"
+        echo "Current configuration:"
+        jq . "$CONFIG_FILE" 2>/dev/null || echo "  (could not parse config)"
+        echo ""
+        read -p "Overwrite existing config? [Y/n/s] (s=skip) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Ss]$ ]]; then
+            echo "Skipping config creation."
+            return 1
+        elif [[ $REPLY =~ ^[Nn]$ ]]; then
+            echo "Aborted."
+            exit 1
+        fi
+    fi
+    return 0
+}
