@@ -6,20 +6,15 @@ Get notified on your phone when Claude needs your attention — permission reque
 
 ---
 
-## Overview
+## What It Does
 
-This repo contains **two approaches** to ntfy notifications for Claude Code:
+A single bash script that plugs into Claude Code's native hook system. When Claude fires a `Stop`, `PermissionRequest`, or `Notification` event, you get a push notification on your phone.
 
-| Approach | Best For | Location |
-|----------|----------|----------|
-| **Native Hooks** (recommended) | Simple setup, no dependencies | `hooks/notify-ntfy.sh` |
-| **Full Plugin** | Advanced features, Docker self-host | `claude-ntfy/` |
-
-The **native hooks approach** is a single bash script that uses Claude Code's built-in hook system. No plugin installation, no Docker, no Node.js — just bash, curl, and jq.
+No plugin system. No Docker. No dependencies beyond bash, curl, and jq.
 
 ---
 
-## Quick Start (Native Hooks)
+## Quick Start
 
 ### 1. Install the ntfy app
 
@@ -138,6 +133,8 @@ Configuration resolution (highest priority wins):
 }
 ```
 
+See [docs/CONFIG.md](docs/CONFIG.md) for more configuration options including self-hosted ntfy.
+
 ---
 
 ## Hook Events
@@ -161,22 +158,6 @@ Priority levels: 1 (low) → 5 (high). Permission requests use priority 4 to sta
 - **jq** (ships with macOS; `apt install jq` / `brew install jq` if missing)
 
 No Docker. No Python. No Node. Just bash.
-
----
-
-## Alternative: Full Plugin
-
-For a more feature-complete solution with:
-- Interactive setup skill (`/setup`)
-- Test notification skill (`/test-ntfy`)
-- Self-hosted ntfy via Docker
-- Bash 4.0+ with full plugin system
-
-See [`claude-ntfy/`](claude-ntfy/) and install with:
-
-```bash
-claude plugin add /path/to/claude-code-ntfy/claude-ntfy
-```
 
 ---
 
