@@ -86,3 +86,21 @@ install_jq() {
         exit 1
     fi
 }
+
+# Resolve installation paths based on mode
+resolve_paths() {
+    if [ "$LOCAL_MODE" = "--local" ]; then
+        CONFIG_DIR=".config/notify-ntfy"
+        HOOKS_DIR=".claude/hooks"
+        SETTINGS_FILE=".claude/settings.json"
+        CONFIG_FILE="$CONFIG_DIR/config.json"
+    else
+        CONFIG_DIR="$HOME/.config/notify-ntfy"
+        HOOKS_DIR="$HOME/.claude/hooks"
+        SETTINGS_FILE="$HOME/.claude/settings.json"
+        CONFIG_FILE="$CONFIG_DIR/config.json"
+    fi
+
+    # Create directories if needed
+    mkdir -p "$CONFIG_DIR" "$HOOKS_DIR"
+}
