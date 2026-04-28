@@ -14,94 +14,32 @@ No plugin system. No Docker. No dependencies beyond bash, curl, and jq.
 
 ---
 
-## Quick Start
-
-### 1. Install the ntfy app
-
-- **iOS**: [App Store](https://apps.apple.com/us/app/ntfy/id1625395537)
-- **Android**: [Google Play](https://play.google.com/store/apps/details?id=io.heckel.ntfy) or [F-Droid](https://f-droid.org/packages/io.heckel.ntfy/)
-
-### 2. Subscribe to a topic
-
-Open the app and subscribe to a topic. Use a hard-to-guess name (like a UUID):
+## Quick Install
 
 ```bash
-# Generate a topic name
-uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-'
-# Example: claude-code-jyxtn
+# Clone and run installer
+git clone <repo-url>
+cd claude-code-ntfy
+./install.sh
 ```
 
-### 3. Create config file
+The installer will:
+1. Check dependencies (curl, jq)
+2. Guide you through server selection (ntfy.sh or self-hosted)
+3. Suggest three-random-word topic names (e.g., "blue-mountain-sunrise")
+4. Create config and install the hook
+5. Register hooks in Claude Code settings
+6. Send a test notification
 
-```bash
-mkdir -p ~/.config/notify-ntfy
-cat > ~/.config/notify-ntfy/config.json << 'EOF'
-{
-  "server_url": "https://ntfy.sh",
-  "topic": "your-topic-name-here"
-}
-EOF
-```
+### Manual Install
 
-### 4. Install the hook script
+If you prefer to set things up manually:
 
-```bash
-# Copy the hook to your Claude hooks directory
-cp hooks/notify-ntfy.sh ~/.claude/hooks/
-chmod +x ~/.claude/hooks/notify-ntfy.sh
-```
-
-### 5. Register hooks in Claude Code
-
-Edit `~/.claude/settings.json` and add the hook registrations:
-
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/notify-ntfy.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "PermissionRequest": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/notify-ntfy.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/notify-ntfy.sh",
-            "timeout": 10
-          }
-        ]
-      }
-    ]
-  }
-}
-```
-
-### 6. Test it
-
-```bash
-echo '{"hook_event_name":"Stop","cwd":"/tmp/test-project"}' | ~/.claude/hooks/notify-ntfy.sh
-```
-
-Check your phone — you should see a notification.
+1. Install the ntfy app (iOS: [App Store](https://apps.apple.com/us/app/ntfy/id1625395537), Android: [Google Play](https://play.google.com/store/apps/details?id=io.heckel.ntfy) or [F-Droid](https://f-droid.org/packages/io.heckel.ntfy/))
+2. Subscribe to a topic in the app
+3. Create `~/.config/notify-ntfy/config.json` with your topic
+4. Copy `hooks/notify-ntfy.sh` to `~/.claude/hooks/`
+5. Add hook registrations to `~/.claude/settings.json` (see [CONFIG.md](docs/CONFIG.md) for details)
 
 ---
 
@@ -185,6 +123,16 @@ No Docker. No Python. No Node. Just bash.
 **Hooks not firing:**
 - Restart Claude Code — hooks are loaded at session start
 - Verify `~/.claude/settings.json` syntax: `jq . ~/.claude/settings.json`
+
+---
+
+## Uninstall
+
+```bash
+./uninstall.sh
+```
+
+This removes the config file, hook script, and settings.json entries.
 
 ---
 
