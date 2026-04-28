@@ -3,10 +3,43 @@
 # Reads hook event JSON from stdin, formats notification, sends to ntfy.
 #
 # Config: env vars (NTFY_TOPIC, NTFY_SERVER_URL, NTFY_TOKEN) > config file > defaults
+#
+# Activity suppression: Set NTFY_ACTIVITY_THRESHOLD (seconds) to skip notifications
+# when terminal was recently active. Requires shell hook to write timestamp file.
 
 set -eo pipefail
 
 CONFIG_FILE="${HOME}/.config/notify-ntfy/config.json"
+ACTIVITY_FILE="${HOME}/.config/notify-ntfy/.last-active"
+ACTIVITY_THRESHOLD="${NTFY_ACTIVITY_THRESHOLD:-60}"
+
+# --- Activity suppression ---
+
+should_skip_notification() {
+  if [ -z "$ACTIVITY_THRESHOLD" ] || [ "$ACTIVITY_THRESHOLD" -le 0 ]; then
+    return 1
+  fi
+
+  if [ ! -f "$ACTIVITY_FILE" ]; then
+    return 1
+  fi
+
+  local last_active now elapsed
+  last_active=$(cat "$ACTIVITY_FILE" 2>/dev/null) || return 1
+  now=$(date +%s)
+
+  if ! [[ "$last_active" =~ ^[0-9]+$ ]]; then
+    return 1
+  fi
+
+  elapsed=$((now - last_active))
+
+  if [ "$elapsed" -lt "$ACTIVITY_THRESHOLD" ]; then
+    return 0
+  fi
+
+  return 1
+}
 
 # --- Config resolution ---
 
@@ -131,6 +164,10 @@ case "$EVENT" in
 esac
 
 # --- Send notification ---
+
+if should_skip_notification; then
+  exit 0
+fi
 
 AUTH_HEADER=""
 if [ -n "$TOKEN" ]; then

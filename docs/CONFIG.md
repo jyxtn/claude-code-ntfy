@@ -100,3 +100,59 @@ EOF
 ```bash
 NTFY_TOPIC=test-topic ~/.claude/hooks/notify-ntfy.sh < test-event.json
 ```
+
+---
+
+## Activity Suppression
+
+Skip notifications when you're actively using the terminal. Useful when you're watching Claude work — you don't need a push notification if you're already at your desk.
+
+### How it works
+
+1. Your shell writes a timestamp every time you run a command
+2. The hook checks this timestamp before sending
+3. If terminal was active within the threshold, notification is skipped
+
+### Setup
+
+**Step 1: Add to your shell config**
+
+**Bash** (`~/.bashrc`):
+```bash
+PROMPT_COMMAND='date +%s > ~/.config/notify-ntfy/.last-active'
+```
+
+**Zsh** (`~/.zshrc`):
+```zsh
+precmd() { date +%s > ~/.config/notify-ntfy/.last-active }
+```
+
+**Fish** (`~/.config/fish/config.fish`):
+```fish
+function fish_prompt
+    date +%s > ~/.config/notify-ntfy/.last-active
+    # ... rest of your prompt
+end
+```
+
+**Step 2: Configure threshold (optional)**
+
+Default is 60 seconds. Set via environment variable:
+
+```bash
+export NTFY_ACTIVITY_THRESHOLD=300  # 5 minutes
+```
+
+Or disable entirely:
+
+```bash
+export NTFY_ACTIVITY_THRESHOLD=0  # Always notify
+```
+
+### Threshold behavior
+
+| Activity | Result |
+|----------|--------|
+| Last command was 30s ago | Notification **skipped** (you're active) |
+| Last command was 5m ago | Notification **sent** (you've stepped away) |
+| No timestamp file exists | Notification **sent** (shell hook not set up) |
