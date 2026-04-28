@@ -364,3 +364,58 @@ EOF
     mv "$temp_file" "$SETTINGS_FILE"
     echo "Updated settings.json with hook registrations"
 }
+
+send_test_notification() {
+    echo ""
+    echo "Sending test notification..."
+
+    local test_output
+    test_output=$(echo '{"hook_event_name":"Stop","cwd":"/tmp/test"}' | "$HOOKS_DIR/notify-ntfy.sh" 2>&1)
+    local exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
+        echo "Test notification sent successfully!"
+        echo "Check your phone for the notification."
+    else
+        echo "Warning: Test notification failed (exit code: $exit_code)"
+        echo "Output: $test_output"
+        echo ""
+        echo "Troubleshooting:"
+        echo "  - Verify your topic is subscribed in the ntfy app"
+        echo "  - Check that curl and jq are working"
+        echo "  - Review the config at: $CONFIG_FILE"
+    fi
+}
+
+main() {
+    echo "notify-ntfy Installer"
+    echo "====================="
+    echo ""
+
+    check_deps
+    resolve_paths
+
+    if detect_existing_config; then
+        select_server
+        generate_topic
+        create_config
+    fi
+
+    install_hook
+
+    if show_settings_diff; then
+        modify_settings
+    fi
+
+    send_test_notification
+
+    echo ""
+    echo "Installation complete!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. Install the ntfy app on your phone"
+    echo "  2. Subscribe to topic: $TOPIC"
+    echo "  3. Restart Claude Code to pick up the new hooks"
+}
+
+main "$@"
