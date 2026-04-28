@@ -222,3 +222,18 @@ EOF
     echo "$config" > "$CONFIG_FILE"
     echo "Created config at: $CONFIG_FILE"
 }
+
+install_hook() {
+    local hook_source="$SCRIPT_DIR/hooks/notify-ntfy.sh"
+    local hook_target="$HOOKS_DIR/notify-ntfy.sh"
+
+    if [ ! -f "$hook_source" ]; then
+        echo "Error: Hook script not found at $hook_source"
+        echo "Make sure you're running install.sh from the repo root."
+        exit 1
+    fi
+
+    cp "$hook_source" "$hook_target"
+    chmod +x "$hook_target"
+    echo "Installed hook to: $hook_target"
+}
