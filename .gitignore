@@ -1,3 +1,4 @@
 claude-ntfy/
 agent_proxy.db
 .worktrees/
+.notify-ntfy.json

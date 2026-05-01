@@ -18,6 +18,61 @@ else
     SETTINGS_FILE="$HOME/.claude/settings.json"
 fi
 
+# Remove activity suppression hook from shell config
+remove_activity_suppression() {
+    local shell_name
+    shell_name=$(basename "$SHELL")
+
+    local config_file=""
+    case "$shell_name" in
+        zsh)
+            config_file="$HOME/.zshrc"
+            ;;
+        bash)
+            if [ -f "$HOME/.bashrc" ]; then
+                config_file="$HOME/.bashrc"
+            elif [ -f "$HOME/.bash_profile" ]; then
+                config_file="$HOME/.bash_profile"
+            fi
+            ;;
+        fish)
+            config_file="$HOME/.config/fish/config.fish"
+            ;;
+    esac
+
+    if [ -z "$config_file" ] || [ ! -f "$config_file" ]; then
+        return 0
+    fi
+
+    if ! grep -q "notify-ntfy activity tracking" "$config_file" 2>/dev/null; then
+        return 0
+    fi
+
+    echo "Found activity suppression hook in: $config_file"
+    read -p "Remove activity suppression hook? [Y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "Skipping removal of activity suppression hook."
+        return 0
+    fi
+
+    # Create temp file without the notify-ntfy block
+    # This removes the comment line and everything until a blank line or the end
+    awk '
+        /# notify-ntfy activity tracking/ {
+            # Skip this line and all following non-blank lines
+            getline
+            while (NF > 0) {
+                getline
+            }
+            next
+        }
+        { print }
+    ' "$config_file" > "${config_file}.tmp" && mv "${config_file}.tmp" "$config_file"
+
+    echo "Removed activity suppression hook from $config_file"
+}
+
 echo "notify-ntfy Uninstaller"
 echo "======================="
 echo ""
@@ -80,3 +135,6 @@ fi
 
 echo ""
 echo "Uninstall complete."
+
+# Offer to remove activity suppression
+remove_activity_suppression

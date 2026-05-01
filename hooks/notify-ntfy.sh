@@ -2,16 +2,33 @@
 # notify-ntfy: Push notification for Claude Code events via ntfy.sh
 # Reads hook event JSON from stdin, formats notification, sends to ntfy.
 #
-# Config: env vars (NTFY_TOPIC, NTFY_SERVER_URL, NTFY_TOKEN) > config file > defaults
+# Config resolution (highest priority first):
+#   1. Environment variables (NTFY_TOPIC, NTFY_SERVER_URL, NTFY_TOKEN)
+#   2. Local project config (.notify-ntfy.json in project directory)
+#   3. Global config (~/.config/notify-ntfy/config.json)
+#   4. Defaults
 #
 # Activity suppression: Set NTFY_ACTIVITY_THRESHOLD (seconds) to skip notifications
 # when terminal was recently active. Requires shell hook to write timestamp file.
 
 set -eo pipefail
 
-CONFIG_FILE="${HOME}/.config/notify-ntfy/config.json"
+GLOBAL_CONFIG="${HOME}/.config/notify-ntfy/config.json"
 ACTIVITY_FILE="${HOME}/.config/notify-ntfy/.last-active"
-ACTIVITY_THRESHOLD="${NTFY_ACTIVITY_THRESHOLD:-60}"
+ACTIVITY_THRESHOLD="${NTFY_ACTIVITY_THRESHOLD:-20}"
+
+# Parse input early to get CWD for local config detection
+INPUT=$(cat)
+CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null || echo "")
+
+# Determine which config file to use
+if [ -n "$CWD" ] && [ -f "${CWD}/.notify-ntfy.json" ]; then
+  CONFIG_FILE="${CWD}/.notify-ntfy.json"
+elif [ -n "$CWD" ] && [ -f "${CWD}/.claude/notify-ntfy.json" ]; then
+  CONFIG_FILE="${CWD}/.claude/notify-ntfy.json"
+else
+  CONFIG_FILE="$GLOBAL_CONFIG"
+fi
 
 # --- Activity suppression ---
 
@@ -102,12 +119,9 @@ fi
 
 URL="${SERVER_URL}/${TOPIC}"
 
-# --- Parse hook event from stdin ---
-
-INPUT=$(cat)
+# --- Parse remaining hook event data ---
 
 EVENT=$(printf '%s' "$INPUT" | jq -r '.hook_event_name // ""' 2>/dev/null || echo "")
-CWD=$(printf '%s' "$INPUT" | jq -r '.cwd // ""' 2>/dev/null || echo "")
 PROJECT=$(printf '%s' "$CWD" | xargs basename 2>/dev/null || echo "")
 PROJECT="${PROJECT:-unknown}"
 

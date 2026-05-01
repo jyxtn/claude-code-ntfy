@@ -1,14 +1,15 @@
 # Configuration Guide
 
-Configuration for `notify-ntfy.sh` can be provided via environment variables or a config file.
+Configuration for `notify-ntfy.sh` can be provided via environment variables, project-local config, or global config.
 
 ## Resolution Order
 
 Configuration is resolved in this priority (highest wins):
 
 1. **Environment variables** (`NTFY_TOPIC`, `NTFY_SERVER_URL`, `NTFY_TOKEN`)
-2. **Config file** (`~/.config/notify-ntfy/config.json`)
-3. **Defaults** (only `server_url` has a default; `topic` is required)
+2. **Project-local config** (`.notify-ntfy.json` in project directory)
+3. **Global config** (`~/.config/notify-ntfy/config.json`)
+4. **Defaults** (only `server_url` has a default; `topic` is required)
 
 ## Environment Variables
 
@@ -50,6 +51,46 @@ Create `~/.config/notify-ntfy/config.json`:
   "token": "tk_your_token_here"
 }
 ```
+
+## Project-Local Configuration
+
+Use a different topic per project by creating `.notify-ntfy.json` in your project root:
+
+```json
+{
+  "server_url": "https://ntfy.sh",
+  "topic": "abacus-zebra-quartz-meadow"
+}
+```
+
+The hook checks these locations in order:
+1. `.notify-ntfy.json` (project root)
+2. `.claude/notify-ntfy.json` (Claude config directory)
+3. Falls back to global config
+
+### Use Cases
+
+**Team project with shared notifications:**
+```json
+{
+  "server_url": "https://ntfy.sh",
+  "topic": "team-infrastructure-alerts"
+}
+```
+Commit this to the repo so the whole team gets notified.
+
+**Personal project with private notifications:**
+```json
+{
+  "server_url": "https://ntfy.sh",
+  "topic": "abacus-zebra-quartz-meadow"
+}
+```
+Add to `.gitignore` to keep your topic private.
+
+**Different servers per project:**
+- Work projects → Self-hosted ntfy server
+- Personal projects → ntfy.sh public server
 
 ## Self-Hosted ntfy
 

@@ -1,13 +1,36 @@
 #!/bin/bash
 # install.sh: Interactive installer for notify-ntfy
 #
-# Usage: ./install.sh [--local]
+# Usage: ./install.sh [--local] [--with-activity-suppression]
 #   --local: Install to project directory (EXPERIMENTAL)
+#   --with-activity-suppression: Set up shell hooks for activity-based notification suppression
 
 set -eo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOCAL_MODE="${1:-}"
+LOCAL_MODE=""
+ACTIVITY_SUPPRESSION=""
+
+# Parse arguments
+for arg in "$@"; do
+    case "$arg" in
+        --local)
+            LOCAL_MODE="--local"
+            ;;
+        --with-activity-suppression)
+            ACTIVITY_SUPPRESSION="1"
+            ;;
+        --help|-h)
+            echo "Usage: ./install.sh [--local] [--with-activity-suppression]"
+            echo ""
+            echo "Options:"
+            echo "  --local                       Install to project directory (experimental)"
+            echo "  --with-activity-suppression   Set up shell hooks to skip notifications when terminal is active"
+            echo "  --help, -h                    Show this help message"
+            exit 0
+            ;;
+    esac
+done
 
 if [ "$LOCAL_MODE" = "--local" ]; then
     echo "WARNING: --local mode is experimental and may not work with Claude Code's"
@@ -85,6 +108,134 @@ install_jq() {
         echo "Unsupported OS. Please install jq manually."
         exit 1
     fi
+}
+
+# --- Activity suppression setup ---
+
+detect_shell() {
+    local shell_name
+    shell_name=$(basename "$SHELL")
+    echo "$shell_name"
+}
+
+get_shell_config_file() {
+    local shell_name="$1"
+    case "$shell_name" in
+        zsh)
+            echo "$HOME/.zshrc"
+            ;;
+        bash)
+            if [ -f "$HOME/.bashrc" ]; then
+                echo "$HOME/.bashrc"
+            elif [ -f "$HOME/.bash_profile" ]; then
+                echo "$HOME/.bash_profile"
+            else
+                echo "$HOME/.bashrc"
+            fi
+            ;;
+        fish)
+            echo "$HOME/.config/fish/config.fish"
+            ;;
+        *)
+            echo ""
+            ;;
+    esac
+}
+
+is_activity_hook_present() {
+    local config_file="$1"
+    if [ -f "$config_file" ] && grep -q "notify-ntfy activity tracking" "$config_file" 2>/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+setup_activity_suppression() {
+    local shell_name
+    shell_name=$(detect_shell)
+
+    echo ""
+    echo "Activity Suppression Setup"
+    echo "========================="
+    echo ""
+    echo "This will add a shell hook to skip notifications when your terminal"
+    echo "has been active within the last 20 seconds."
+    echo ""
+
+    local config_file
+    config_file=$(get_shell_config_file "$shell_name")
+
+    if [ -z "$config_file" ]; then
+        echo "Could not detect shell config file for: $shell_name"
+        echo "Please add the activity hook manually (see docs/CONFIG.md)"
+        return 1
+    fi
+
+    echo "Detected shell: $shell_name"
+    echo "Config file: $config_file"
+    echo ""
+
+    if is_activity_hook_present "$config_file"; then
+        echo "Activity suppression hook already present in $config_file"
+        echo "Skipping setup."
+        return 0
+    fi
+
+    read -p "Add activity suppression hook to $config_file? [Y/n] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        echo "Skipping activity suppression setup."
+        echo "You can enable it later by running: ./install.sh --with-activity-suppression"
+        return 0
+    fi
+
+    # Create config directory if needed
+    mkdir -p "$(dirname "$ACTIVITY_FILE")"
+
+    # Add hook based on shell type
+    case "$shell_name" in
+        zsh)
+            cat >> "$config_file" << 'EOF'
+
+# notify-ntfy activity tracking (skip notifications when terminal active)
+precmd() {
+    mkdir -p ~/.config/notify-ntfy
+    date +%s > ~/.config/notify-ntfy/.last-active
+}
+EOF
+            ;;
+        bash)
+            cat >> "$config_file" << 'EOF'
+
+# notify-ntfy activity tracking (skip notifications when terminal active)
+PROMPT_COMMAND='mkdir -p ~/.config/notify-ntfy && date +%s > ~/.config/notify-ntfy/.last-active'
+EOF
+            ;;
+        fish)
+            mkdir -p "$(dirname "$config_file")"
+            cat >> "$config_file" << 'EOF'
+
+# notify-ntfy activity tracking (skip notifications when terminal active)
+function fish_prompt
+    mkdir -p ~/.config/notify-ntfy
+    date +%s > ~/.config/notify-ntfy/.last-active
+    # Your existing prompt logic follows...
+end
+EOF
+            echo ""
+            echo "NOTE: Fish shell requires manual integration into your existing fish_prompt function."
+            echo "The hook has been appended to $config_file but may need adjustment."
+            ;;
+        *)
+            echo "Unsupported shell: $shell_name"
+            echo "Please add the activity hook manually (see docs/CONFIG.md)"
+            return 1
+            ;;
+    esac
+
+    echo ""
+    echo "Added activity suppression hook to $config_file"
+    echo "To activate: start a new terminal or run: source $config_file"
 }
 
 # Resolve installation paths based on mode
@@ -409,6 +560,11 @@ main() {
         modify_settings
     fi
 
+    # Setup activity suppression if requested
+    if [ -n "$ACTIVITY_SUPPRESSION" ]; then
+        setup_activity_suppression
+    fi
+
     send_test_notification
 
     echo ""
@@ -418,6 +574,9 @@ main() {
     echo "  1. Install the ntfy app on your phone"
     echo "  2. Subscribe to topic: $TOPIC"
     echo "  3. Restart Claude Code to pick up the new hooks"
+    if [ -n "$ACTIVITY_SUPPRESSION" ]; then
+        echo "  4. Start a new terminal or run 'source <your-shell-rc>' to activate activity suppression"
+    fi
 }
 
 main "$@"

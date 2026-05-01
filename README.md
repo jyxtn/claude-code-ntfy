@@ -31,6 +31,11 @@ The installer will:
 5. Register hooks in Claude Code settings
 6. Send a test notification
 
+**With activity suppression** (skips notifications when you're actively using the terminal):
+```bash
+./install.sh --with-activity-suppression
+```
+
 ### Manual Install
 
 If you prefer to set things up manually:
